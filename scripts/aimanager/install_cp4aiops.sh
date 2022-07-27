@@ -26,7 +26,7 @@ spec:
   size: small
   storageClass: ${storage_class}
   storageClassLargeBlock: ${storage_block_class}
-  imagePullSecret: ibm-entitlement-key
+  imagePullSecret: ibm-entitlement-key              // pragma: allowlist secret
   license:
     accept: ${ACCEPT_LICENSE}
   pakModules:
@@ -46,6 +46,45 @@ spec:
   - name: connection
     enabled: false
 EOF
+
+
+# Edit file and add the pull secret
+cat <<EOF | kubectl apply -f -
+apiVersion: ai.ir.aiops.ibm.com/v1beta1
+kind: AIOpsAnalyticsOrchestrator
+metadata:
+  name: aiops
+  namespace: $NAMESPACE
+spec:
+  cassandra:
+    bindingSecret: aiops-topology-cassandra-auth-secret       // pragma: allowlist secret
+    host: aiops-topology-cassandra
+    portNumber: 9042
+    secretName: aiops-topology-cassandra-auth-secret
+  couch:
+    bindingSecret: ibm-aiops-couchdb-secret                   // pragma: allowlist secret
+    host: example-couchdbcluster
+    portNumber: 443
+    secretName: c-example-couchdbcluster-m
+  datalayer:
+    stdApiAuthSecretName: aiops-ir-core-ncodl-std-secret
+    stdApiCaSecretName: aiops-ir-core-service-ca
+    stdApiHost: aiops-ir-core-ncodl-std
+    stdApiPort: 10011
+  deployedFeatures:
+    probableCause: true
+    sparkRuntime: true
+  kafka:
+    bindingSecret: ibm-aiops-kafka-secret                     // pragma: allowlist secret
+  license:
+    accept: true
+  size: small
+  topologyInstanceName: aiops
+  pullSecrets:
+  - ibm-aiops-pull-secret
+EOF
+
+
 
 ###
 # Wait for AIOpsAnalyticsOrchestrator to create..
@@ -71,41 +110,6 @@ done
 
 echo "=== Adding pull secret to the ibm-aiops-orchestrator operator"
 
-# Edit file and add the pull secret
-cat <<EOF | kubectl apply -f -
-apiVersion: ai.ir.aiops.ibm.com/v1beta1
-kind: AIOpsAnalyticsOrchestrator
-metadata:
-  name: aiops
-  namespace: $NAMESPACE
-spec:
-  cassandra:
-    bindingSecret: aiops-topology-cassandra-auth-secret
-    host: aiops-topology-cassandra
-    portNumber: 9042
-    secretName: aiops-topology-cassandra-auth-secret
-  couch:
-    bindingSecret: ibm-aiops-couchdb-secret
-    host: example-couchdbcluster
-    portNumber: 443
-    secretName: c-example-couchdbcluster-m
-  datalayer:
-    stdApiAuthSecretName: aiops-ir-core-ncodl-std-secret
-    stdApiCaSecretName: aiops-ir-core-service-ca
-    stdApiHost: aiops-ir-core-ncodl-std
-    stdApiPort: 10011
-  deployedFeatures:
-    probableCause: true
-    sparkRuntime: true
-  kafka:
-    bindingSecret: ibm-aiops-kafka-secret
-  license:
-    accept: true
-  size: small
-  topologyInstanceName: aiops
-  pullSecrets:
-  - ibm-aiops-pull-secret
-EOF
 
 # Find the pod and restart it if it is there.
 echo '=== checking for aiops-ir-analytics pod ==='

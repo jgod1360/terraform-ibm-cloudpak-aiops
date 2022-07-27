@@ -1,7 +1,11 @@
 #!/bin/sh
 
+echo "=== Creating ${NAMESPACE} Namespace/Project ==="
+kubectl create ns "${NAMESPACE}"
+echo
 
-echo "=== Creating noi-registry-key secret ==="
+
+echo "=== Creating noi-registry-key secret ===" // pragma: allowlist secret
 kubectl create secret docker-registry noi-registry-secret  \
     --docker-username=cp\
     --docker-password=${ENTITLEMENT_KEY} \

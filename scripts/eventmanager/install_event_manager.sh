@@ -18,8 +18,8 @@ SET_BACKUP_DEPLOYMENT=${BACKUP_DEPLOYMENT:-false}
 
 # Topologies
 ENABLE_APP_DISC=${ENABLE_APP_DISC:-false}
-SET_AP_CERT_SECRET=${AP_CERT_SECRET:-''}
-SET_AP_DB_SECRET=${AP_DB_SECRET:-''}
+SET_AP_CERT_SECRET=${AP_CERT_SECRET:-''}      # pragma: allowlist secret
+SET_AP_DB_SECRET=${AP_DB_SECRET:-''}          # pragma: allowlist secret
 SET_AP_DB_HOST_URL=${AP_DB_HOST_URL:-''}
 
 
@@ -79,7 +79,7 @@ spec:
       dbsecret: ${SET_AP_DB_SECRET}
       db2database: taddm
       dburl: ${SET_AP_DB_HOST_URL}
-      certSecret: ${SET_AP_CERT_SECRET}
+      certSecret: ${SET_AP_CERT_SECRET}     # pragma: allowlist secret
       db2archuser: archuser
       secure: ${AP_SECURE_DB} 
       scaleDS: '1'
@@ -116,7 +116,7 @@ spec:
       vmwarensx: ${OBV_VMWARENSX}
     netDisco: ${ENABLE_NETWORK_DISCOVERY}
   version: 1.6.3.2
-  entitlementSecret: noi-registry-secret
+  entitlementSecret: noi-registry-secret        // pragma: allowlist secret
   clusterDomain: >-
     ${FQDN}
   integrations:

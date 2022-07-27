@@ -1,33 +1,70 @@
 provider "ibm" {
-  region           = var.region
   ibmcloud_api_key = var.ibmcloud_api_key
+  region           = var.region
 }
 
-data "ibm_resource_group" "group" {
+resource "random_string" "this" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
+data "ibm_resource_group" "rg" {
   name = var.resource_group
 }
 
+module "classic-openshift-single-zone-cluster" {
+  source = "terraform-ibm-modules/cluster/ibm//modules/classic-openshift-single-zone"
+
+  // Openshift parameters:
+  cluster_name          = local.cluster_name
+  worker_zone           = var.worker_zone
+  hardware              = var.hardware
+  resource_group_id     = data.ibm_resource_group.rg.id
+  worker_nodes_per_zone = (var.workers_count != null ? var.workers_count : 1)
+  worker_pool_flavor    = (var.worker_pool_flavor != null ? var.worker_pool_flavor : null)
+  public_vlan           = (var.public_vlan != null ? var.public_vlan : null)
+  private_vlan          = (var.private_vlan != null ? var.private_vlan : null)
+  kube_version          = local.roks_version
+  tags                  = ["project:${var.roks_project_name}", "env:${var.environment}", "owner:${var.owner}"]
+  entitlement           = (var.entitlement != null ? var.entitlement : "")
+}
+
+
+resource "time_sleep" "wait_for_ingress" {
+  depends_on = [module.classic-openshift-single-zone-cluster]
+
+  create_duration = "800s"
+}
+
+
 resource "null_resource" "mkdir_kubeconfig_dir" {
   triggers = { always_run = timestamp() }
+
   provisioner "local-exec" {
     command = "mkdir -p ${var.cluster_config_path}"
   }
 }
 
 data "ibm_container_cluster_config" "cluster_config" {
-  depends_on = [null_resource.mkdir_kubeconfig_dir]
-  cluster_name_id   = var.cluster_name_or_id
-  resource_group_id = data.ibm_resource_group.group.id
+  depends_on        = [null_resource.mkdir_kubeconfig_dir, time_sleep.wait_for_ingress]
+  cluster_name_id   = module.classic-openshift-single-zone-cluster.classic_openshift_cluster_id
+  resource_group_id = data.ibm_resource_group.rg.id
   config_dir        = var.cluster_config_path
+  admin             = true
+  download          = true
+  network           = false
 }
-
 
 // Module:
 module "cp4aiops" {
-  source    = "../../."
-  cluster_config_path = data.ibm_container_cluster_config.cluster_config.config_file_path
-  on_vpc              = var.on_vpc
-  portworx_is_ready   = 1
+  depends_on = [data.ibm_container_cluster_config.cluster_config]
+
+  source    = "../../"
+
+  cluster_config_path      = data.ibm_container_cluster_config.cluster_config.config_file_path
+  on_vpc                   = false
+  portworx_is_ready        = 1          // Assuming portworx is installed if using VPC infrastructure
 
   // Entitled Registry parameters:
   entitled_registry_key        = var.entitled_registry_key
@@ -36,13 +73,13 @@ module "cp4aiops" {
   // AIOps specific parameters:
   accept_aimanager_license     = var.accept_aimanager_license
   accept_event_manager_license = var.accept_event_manager_license
-  namespace            = "aiops"
-  enable_aimanager     = true
+  namespace                    = "aiops"
+  enable_aimanager             = true
 
   //************************************
   // EVENT MANAGER OPTIONS START *******
   //************************************
-  enable_event_manager = true
+  enable_event_manager         = true
 
   // Persistence option
   enable_persistence               = var.enable_persistence
